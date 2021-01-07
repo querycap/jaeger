@@ -10,13 +10,16 @@ TARGETARCHS = amd64 arm64
 DOCKERX = docker buildx build --push
 
 ifneq (tracegen,$(COMPONENT))
-	DOCKERX := $(DOCKERX) --target=release
+	ifneq (,$(findstring -debug,$(COMPONENT)))
+		DOCKERX := $(DOCKERX) --target=debug
+	else
+		DOCKERX := $(DOCKERX) --target=release
+	endif
 endif
 
-COMPONENTWORKSPACE=./jaeger/cmd/$(COMPONENT)
+COMPONENTWORKSPACE = ./jaeger/cmd/$(subst -debug,,$(COMPONENT))
 
 IMAGENAME = jaeger-$(COMPONENT)
-
 ifeq (all-in-one,$(COMPONENT))
 	IMAGENAME = $(COMPONENT)
 endif
@@ -42,15 +45,17 @@ buildx-debug-img:
 		jaeger/docker/debug
 
 install-esc:
-	cd jaeger && go get -u github.com/mjibson/esc
+	@if ! esc > /dev/null 2>&1; then \
+  		cd jaeger && go get -u github.com/mjibson/esc; \
+  	fi
 
 buildx-bin: install-esc
 	cd jaeger && sh -c "$(foreach arch,$(TARGETARCHS),make build-$(COMPONENT) GOOS=linux GOARCH=$(arch);)"
 
 buildx: buildx-bin
-	sed -i -e 's/ARG TARGETARCH=amd64/ARG TARGETARCH/g' $(COMPONENTWORKSPACE)/Dockerfile
+	@sed -i -e 's/ARG TARGETARCH=amd64/ARG TARGETARCH/g' "$(COMPONENTWORKSPACE)/Dockerfile"
 	@echo "======Dockerfile======"
-	@cat $(COMPONENTWORKSPACE)/Dockerfile
+	@cat "$(COMPONENTWORKSPACE)/Dockerfile"
 	@echo "===================="
 	$(DOCKERX) \
 		--file $(COMPONENTWORKSPACE)/Dockerfile \
@@ -64,3 +69,7 @@ cleanup:
 
 dep:
 	git submodule foreach 'tag="$$(git config -f $$toplevel/.gitmodules submodule.$$name.tag)"; if [ -n $$tag ]; then git fetch --tags && git checkout $$tag && git submodule update --init; fi'
+
+
+sync-crd:
+	wget -O charts/jaeger-operator/crds/jaegertracing.io_jaegers_crd.yaml https://raw.githubusercontent.com/jaegertracing/jaeger-operator/master/deploy/crds/jaegertracing.io_jaegers_crd.yaml

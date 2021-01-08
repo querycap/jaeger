@@ -122,7 +122,7 @@ sync-crd:
 img = $(subst docker.io/,,$(word 1,$(HUB))/$(IMAGE_NAME))
 
 gen-doc:
-	@echo "\n## \`$(img)\`"
+	@echo "\n## \`$(img):$(VERSION)\`"
 	@echo "[![Docker Version](https://img.shields.io/docker/v/$(img)?sort=semver)](https://hub.docker.com/r/$(img)/tags)"
 	@echo "![Docker Image Size](https://img.shields.io/docker/image-size/$(img)?sort=semver)"
 	@echo "![Docker Pulls](https://img.shields.io/docker/pulls/$(img))"

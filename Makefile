@@ -1,4 +1,4 @@
-VERSION = $(shell git config -f .gitmodules submodule.jaeger.tag)
+VERSION = $(subst v,,$(shell git config -f .gitmodules submodule.jaeger.tag))
 
 DOCKERX = docker buildx build --push
 

@@ -5,6 +5,7 @@ on:
     paths:
       - .gitmodules
       - .github/workflows/docker-publish-plugin-images.yml
+      - Makefile
     branches:
       - 'master'
 

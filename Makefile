@@ -8,8 +8,13 @@ TARGET_ARCHS = amd64 arm64
 COMPONENT = query
 IMAGE_NAME = jaeger-$(COMPONENT)
 
-
 BASE_IMAGE_COMPONENT = baseimg debugimg
+
+IMAGE_WITHOUT_JAEGER_PREFIX = $(BASE_IMAGE_COMPONENT) all-in-one all-in-one-debug
+
+ifneq (,$(findstring $(COMPONENT),$(IMAGE_WITHOUT_JAEGER_PREFIX)))
+	IMAGE_NAME = $(COMPONENT)
+endif
 
 BACKEND_COMPONENT = \
 	all-in-one \
@@ -25,11 +30,12 @@ BACKEND_COMPONENT = \
 
 BIN_COMPONENT = $(BACKEND_COMPONENT) tracegen
 
-IMAGE_WITHOUT_JAEGER_PREFIX = $(BASE_IMAGE_COMPONENT) all-in-one
+PLUGIN_COMPONENT = \
+	cassandra-schema \
+    es-index-cleaner \
+    es-rollover
 
-ifneq (,$(findstring $(COMPONENT),$(IMAGE_WITHOUT_JAEGER_PREFIX)))
-	IMAGE_NAME = $(COMPONENT)
-endif
+COMPONENTS = $(BIN_COMPONENT) $(PLUGIN_COMPONENT)
 
 ifneq (,$(findstring $(COMPONENT),$(BACKEND_COMPONENT)))
 	ifneq (,$(findstring -debug,$(COMPONENT)))
@@ -111,3 +117,16 @@ dep:
 
 sync-crd:
 	wget -O charts/jaeger-operator/crds/jaegertracing.io_jaegers_crd.yaml https://raw.githubusercontent.com/jaegertracing/jaeger-operator/master/deploy/crds/jaegertracing.io_jaegers_crd.yaml
+
+
+img = $(subst docker.io/,,$(word 1,$(HUB))/$(IMAGE_NAME))
+
+gen-doc:
+	@echo "\n## \`$(img)\`"
+	@echo "[![Docker Version](https://img.shields.io/docker/v/$(img)?sort=semver)](https://hub.docker.com/r/$(img)/tags)"
+	@echo "![Docker Image Size](https://img.shields.io/docker/image-size/$(img)?sort=semver)"
+	@echo "![Docker Pulls](https://img.shields.io/docker/pulls/$(img))"
+
+gen-docs:
+	@echo "# [\`jaeger\`](https://github.com/jaegertracing/jaeger) multi arch images" > README.md
+	@sh -c "$(foreach comp,$(COMPONENTS),make gen-doc COMPONENT=$(comp) >> README.md;)"

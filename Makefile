@@ -1,15 +1,37 @@
 VERSION = $(shell git config -f .gitmodules submodule.jaeger.tag)
 
-info:
-	@echo jaeger:$(VERSION)
-
-COMPONENT = query
-HUB = docker.io/querycapjaegertracing
-TARGETARCHS = amd64 arm64
-
 DOCKERX = docker buildx build --push
 
-ifneq (tracegen,$(COMPONENT))
+HUB = docker.io/querycapjaegertracing
+TARGET_ARCHS = amd64 arm64
+
+COMPONENT = query
+IMAGE_NAME = jaeger-$(COMPONENT)
+
+
+BASE_IMAGE_COMPONENT = baseimg debugimg
+
+BACKEND_COMPONENT = \
+	all-in-one \
+	all-in-one-debug \
+    agent \
+    agent-debug \
+    collector \
+    collector-debug \
+    query \
+    query-debug \
+    ingester \
+    ingester-debug \
+
+BIN_COMPONENT = $(BACKEND_COMPONENT) tracegen
+
+IMAGE_WITHOUT_JAEGER_PREFIX = $(BASE_IMAGE_COMPONENT) all-in-one
+
+ifneq (,$(findstring $(COMPONENT),$(IMAGE_WITHOUT_JAEGER_PREFIX)))
+	IMAGE_NAME = $(COMPONENT)
+endif
+
+ifneq (,$(findstring $(COMPONENT),$(BACKEND_COMPONENT)))
 	ifneq (,$(findstring -debug,$(COMPONENT)))
 		DOCKERX := $(DOCKERX) --target=debug
 	else
@@ -17,32 +39,45 @@ ifneq (tracegen,$(COMPONENT))
 	endif
 endif
 
-COMPONENTWORKSPACE = ./jaeger/cmd/$(subst -debug,,$(COMPONENT))
+ROOT_IMAGE = alpine:3.12
+CERT_IMAGE = $(ROOT_IMAGE)
+GOLANG_IMAGE = golang:1.15-alpine
+BASE_IMG_TAG = 1.0.0-$(subst :,-,$(ROOT_IMAGE))
+DEBUG_IMG_TAG = 1.0.0-$(subst :,-,$(GOLANG_IMAGE))
 
-IMAGENAME = jaeger-$(COMPONENT)
-ifeq (all-in-one,$(COMPONENT))
-	IMAGENAME = $(COMPONENT)
+WORKSPACE = ./jaeger/cmd/$(subst -debug,,$(COMPONENT))
+DOCKERFILE = $(WORKSPACE)/Dockerfile
+
+BUILD_ARGS = base_image=$(HUB)/baseimg:$(BASE_IMG_TAG) debug_image=$(HUB)/debugimg:$(DEBUG_IMG_TAG)
+
+# base image
+ifneq (,$(findstring $(COMPONENT),$(BASE_IMAGE_COMPONENT)))
+	WORKSPACE = ./jaeger/docker/$(subst img,,$(COMPONENT))
+
+	BUILD_ARGS = root_image=$(ROOT_IMAGE) cert_image=$(CERT_IMAGE)
+	VERSION = $(BASE_IMG_TAG)
+
+	ifeq (debugimg,$(COMPONENT))
+		BUILD_ARGS = golang_image=$(GOLANG_IMAGE)
+		VERSION = $(DEBUG_IMG_TAG)
+	endif
 endif
 
-ROOT_IMAGE ?= alpine:3.12
-CERT_IMAGE := alpine:3.12
-GOLANG_IMAGE := golang:1.15-alpine
+ifeq (cassandra-schema,$(COMPONENT))
+    WORKSPACE = ./jaeger/plugin/storage/cassandra
+endif
+ifeq (es-index-cleaner,$(COMPONENT))
+    WORKSPACE = ./jaeger/plugin/storage/es
+endif
+ifeq (es-rollover,$(COMPONENT))
+    WORKSPACE = ./jaeger/plugin/storage/es
+    DOCKERFILE = $(WORKSPACE)/Dockerfile.rollover
+endif
 
-BASE_IMAGE := $(HUB)/baseimg:1.0.0-$(shell echo $(ROOT_IMAGE) | tr : -)
-DEBUG_IMAGE := $(HUB)/debugimg:1.0.0-$(shell echo $(GOLANG_IMAGE) | tr : -)
-
-BUILDARGS = base_image=$(BASE_IMAGE) debug_image=$(DEBUG_IMAGE)
-
-buildx-base-img:
-	docker buildx build --push -t $(BASE_IMAGE) \
-		--build-arg root_image=$(ROOT_IMAGE) \
-		--build-arg cert_image=$(CERT_IMAGE) \
-		jaeger/docker/base
-
-buildx-debug-img:
-	docker buildx build --push -t $(DEBUG_IMAGE) \
-		--build-arg golang_image=$(GOLANG_IMAGE) \
-		jaeger/docker/debug
+info:
+	@echo "====="
+	@echo "component: $(COMPONENT), workspace: $(WORKSPACE), img: $(foreach h,$(HUB),$(h)/$(IMAGE_NAME):$(VERSION))"
+	@echo "====="
 
 install-esc:
 	@if ! esc > /dev/null 2>&1; then \
@@ -50,19 +85,22 @@ install-esc:
   	fi
 
 buildx-bin: install-esc
-	cd jaeger && sh -c "$(foreach arch,$(TARGETARCHS),make build-$(COMPONENT) GOOS=linux GOARCH=$(arch);)"
+ifneq (,$(findstring $(COMPONENT),$(BIN_COMPONENT)))
+	cd jaeger && sh -c "$(foreach arch,$(TARGET_ARCHS),make build-$(COMPONENT) GOOS=linux GOARCH=$(arch);)"
+endif
 
-buildx: buildx-bin
-	@sed -i -e 's/ARG TARGETARCH=amd64/ARG TARGETARCH/g' "$(COMPONENTWORKSPACE)/Dockerfile"
+patch-dockerfile:
+	@sed -i -e 's/ARG TARGETARCH=amd64/ARG TARGETARCH/g' "$(DOCKERFILE)"
 	@echo "======Dockerfile======"
-	@cat "$(COMPONENTWORKSPACE)/Dockerfile"
+	@cat "$(WORKSPACE)/Dockerfile"
 	@echo "===================="
+
+dockerx: info buildx-bin patch-dockerfile
 	$(DOCKERX) \
-		--file $(COMPONENTWORKSPACE)/Dockerfile \
-		$(foreach arg,$(BUILDARGS),--build-arg=$(arg)) \
-		$(foreach h,$(HUB),--tag=$(h)/$(IMAGENAME):$(VERSION)) \
-        $(foreach p,$(TARGETARCHS),--platform=linux/$(p)) \
- 		$(COMPONENTWORKSPACE)
+		$(foreach arg,$(BUILD_ARGS),--build-arg=$(arg)) \
+		$(foreach h,$(HUB),--tag=$(h)/$(IMAGE_NAME):$(VERSION)) \
+		$(foreach p,$(TARGET_ARCHS),--platform=linux/$(p)) \
+		--file=$(DOCKERFILE) $(WORKSPACE)
 
 cleanup:
 	git submodule foreach 'git add . && git reset --hard'

@@ -1,4 +1,4 @@
-name: Docker publish
+name: Docker publish images
 
 on:
   push:
@@ -14,8 +14,8 @@ jobs:
     strategy:
       matrix:
         component:
-          - base
-          - debug
+          - baseimg
+          - debugimg
 
     steps:
       - uses: actions/checkout@v2
@@ -33,10 +33,8 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build & Publish images
-        run: |
-          make dep
-          make buildx-${{ matrix.component }}-img
+      - run: make dep
+      - run: make dockerx COMPONENT=${{ matrix.component }}
 
   docker-image:
     needs:
@@ -82,7 +80,5 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build & Publish images
-        run: |
-          make dep
-          make buildx COMPONENT=${{ matrix.component }}
+      - run: make dep
+      - run: make dockerx COMPONENT=${{ matrix.component }}

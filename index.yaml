@@ -2,6 +2,14 @@ apiVersion: v1
 entries:
   jaeger-operator:
   - apiVersion: v2
+    created: "2021-01-08T07:39:43.209411805Z"
+    digest: 48b7b9502ed9bf2d128cf603ef3ae7444687429deae4093eb022d1c686801d27
+    kubeVersion: ^1.16.0-0
+    name: jaeger-operator
+    urls:
+    - https://github.com/querycap/jaeger/releases/download/jaeger-operator-0.0.1/jaeger-operator-0.0.1.tgz
+    version: 0.0.1
+  - apiVersion: v2
     created: "2021-01-07T10:54:00.320777834Z"
     digest: 34ceb6c324261bbd7657bcad9d426987cc5343205be6d1c3fa95cc3893d5131b
     kubeVersion: ^1.16.0-0

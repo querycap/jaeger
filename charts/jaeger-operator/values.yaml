@@ -1,4 +1,4 @@
-hub: docker.io/querycapjaegertracing
-tag: v1.21.1
+hub: docker.io/jaegertracing
+tag: 1.21
 
 watchedNamespaces: jaeger-system

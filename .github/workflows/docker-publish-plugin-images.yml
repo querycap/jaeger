@@ -18,7 +18,6 @@ jobs:
         component:
           - cassandra-schema
           - es-index-cleaner
-          - es-rollover
 
     steps:
       - uses: actions/checkout@v2

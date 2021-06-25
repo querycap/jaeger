@@ -64,8 +64,3 @@
 [![Docker Version](https://img.shields.io/docker/v/querycapjaegertracing/jaeger-es-index-cleaner?sort=semver)](https://hub.docker.com/r/querycapjaegertracing/jaeger-es-index-cleaner/tags)
 ![Docker Image Size](https://img.shields.io/docker/image-size/querycapjaegertracing/jaeger-es-index-cleaner?sort=semver)
 ![Docker Pulls](https://img.shields.io/docker/pulls/querycapjaegertracing/jaeger-es-index-cleaner)
-
-## `querycapjaegertracing/jaeger-es-rollover:1.21.0`
-[![Docker Version](https://img.shields.io/docker/v/querycapjaegertracing/jaeger-es-rollover?sort=semver)](https://hub.docker.com/r/querycapjaegertracing/jaeger-es-rollover/tags)
-![Docker Image Size](https://img.shields.io/docker/image-size/querycapjaegertracing/jaeger-es-rollover?sort=semver)
-![Docker Pulls](https://img.shields.io/docker/pulls/querycapjaegertracing/jaeger-es-rollover)

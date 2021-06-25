@@ -112,6 +112,7 @@ cleanup:
 	git submodule foreach 'git add . && git reset --hard'
 
 dep:
+	git submodule update --init
 	git submodule foreach 'tag="$$(git config -f $$toplevel/.gitmodules submodule.$$name.tag)"; if [ -n $$tag ]; then git fetch --tags && git checkout $$tag && git submodule update --init; fi'
 
 
